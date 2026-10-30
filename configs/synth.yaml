@@ -1,0 +1,13 @@
+# 合成数据参数，对应 offlinetracking.synth.SynthParams
+fps: 10.0
+n_frames: 240
+img_w: 640
+img_h: 360
+n_same: 12
+n_oncoming: 5
+n_parked: 6
+n_fp: 2
+p_dropout: 0.006
+p_break: 0.006
+p_bridge: 0.6
+model_share: 0.45
