@@ -4,19 +4,29 @@
 
 ## 1. 项目概述
 
-- 任务：离线多目标跟踪（MOT）。输入完整视频的逐帧检测结果，输出全局一致的轨迹。
-- 语言：Python 3.10+；主要依赖 numpy、scipy、PyTorch、OpenCV、TrackEval。
-- 核心流程：检测加载 → 外观/运动特征 → 数据关联（匈牙利 / 图优化）→ 轨迹插值与平滑 → 评估。
+- 任务：2D 离线轨迹重连（STWO）。把上游跟踪器输出的、生命周期不重叠的短轨迹重新连成完整轨迹。每条候选连接输出分数、证据和三档决策（自动 / 复核 / 不连）。
+- 设计依据：《2D 离线轨迹重连（STWO）工程基线方案》。代码注释里的 §章节号与它对应。改算法前先对照文档。
+- 语言：Python 3.10+；依赖 numpy、scipy、OpenCV、PyYAML、matplotlib。**不依赖 PyTorch**，ReID 特征作为输入提供。
+- 流水线（`src/offlinetracking/`）：`quality`/`cmc`（模块 0）→ `gating`（1）→ `motion`（2）→ `appearance`（3）→ `fusion`（4）→ `competition`（5）→ `association`（6）→ `decision`（7），由 `pipeline.py` 串联。标定在 `calibrate.py`，评测在 `eval/`，可视化在 `viz/`。
 
 ## 2. 常用命令
 
 ```bash
-pip install -e .                                     # 安装
-pytest -q                                            # 全部测试，提交前必须通过
-ruff check . && ruff format .                        # 代码检查与格式化
-python scripts/track.py --config configs/<exp>.yaml  # 跟踪
-python scripts/eval.py  --config configs/<exp>.yaml  # 评估
+pip install -e ".[dev]"                                   # 安装
+pytest -q                                                 # 全部测试，提交前必须通过
+ruff check .                                              # 代码检查
+python scripts/make_synth.py --out data/synth --n-seq 24  # 生成合成数据
+python scripts/calibrate.py --out configs/calibrated.yaml # 在 calib 划分上标定全部阈值
+python scripts/run_stwo.py --config configs/calibrated.yaml --split test   # 运行 + 评测 + 审查报告
+python scripts/ablate.py --tau-sweep                      # 消融 A0–A12
 ```
+
+### 本项目的特有约束
+
+- **阈值不手写**：v_max、g0、κ、θ、权重等都由 `calibrate.py` 从 calib 划分得到。`configs/default.yaml` 里的值只是用来跑通流程的初值。新增阈值时，同时在 `calibrate.py` 里加上它的标定方法。
+- **自动档精度优先**：错误连接的代价远高于漏连。任何改动都要报告自动档精度和覆盖率，不能只报 F1 或 IDF1。
+- **竞争模块只产生标记**（MNN、A），不改代价 C_ij。外观否决（`app_veto`）是唯一会把代价改大的规则。
+- 合成数据上的结论只用来验证实现正确，不能当作真实效果对外报告。
 
 ## 3. 编码准则
 
@@ -36,7 +46,7 @@ python scripts/eval.py  --config configs/<exp>.yaml  # 评估
 
 ### 4.2 实验流程
 - 先在小子集上试跑（如 1–2 个序列、前 100 帧）确认流程无误，再跑全量。
-- 不得声称“效果提升”除非给出对比数据：基线与新方法在**同一数据划分、同一评估脚本**下的 HOTA / IDF1 / MOTA。
+- 不得声称“效果提升”除非给出对比数据：基线与新方法在**同一数据划分、同一评估脚本**下的自动档精度 / 覆盖率、边精度 / 召回与 IDF1。
 - 指标出现异常（突增、突降、NaN）时先排查 bug（数据泄漏、帧号偏移、ID 重复），不要直接报告为结论。
 - 严禁用测试集调参；调参只用验证集。
 
