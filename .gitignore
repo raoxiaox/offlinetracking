@@ -10,3 +10,7 @@ wandb/
 *.ckpt
 *.onnx
 .DS_Store
+configs/calibrated*.yaml
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
