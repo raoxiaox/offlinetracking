@@ -1,0 +1,25 @@
+# 消融实验（§11.3）：每行在上一行基础上只改一处。base 为每个实验的完整覆盖项。
+A0:  {desc: 不做重连（上游基线）, set: {pipeline.link: false}}
+A1:
+  desc: 门控 + 单端前向运动，无 CMC，贪心
+  set:
+    cmc.enabled: false
+    motion.velocity: twoframe
+    motion.two_sided: false
+    appearance.enabled: false
+    scale.enabled: false
+    fusion.mode: fixed
+    competition.enabled: false
+    association.solver: greedy
+A2:  {desc: A1 + CMC, from: A1, set: {cmc.enabled: true}}
+A3:  {desc: A2 + 双端运动, from: A2, set: {motion.two_sided: true}}
+A4:  {desc: A3 + 多帧拟合速度（对比两帧差分）, from: A3, set: {motion.velocity: lsq}}
+A5b: {desc: A4 + 外观（末帧 vs 首帧，对照）, from: A4, set: {appearance.enabled: true, appearance.mode: lastfirst}}
+A5:  {desc: A4 + 轨迹级外观（代表帧集合距离）, from: A4, set: {appearance.enabled: true, appearance.mode: set}}
+A6:  {desc: A5 + 尺度, from: A5, set: {scale.enabled: true}}
+A7:  {desc: A6 + 质量自适应权重 + E_ij, from: A6, set: {fusion.mode: adaptive}}
+A8:  {desc: A7 + MNN / margin, from: A7, set: {competition.enabled: true}}
+A9:  {desc: A8，贪心换成匈牙利, from: A8, set: {association.solver: hungarian}}
+A10: {desc: A9，加权和换成逻辑回归, from: A9, set: {fusion.mode: logreg}}
+A11: {desc: A10 + NLL 概率运动代价, from: A10, set: {motion.cost: nll}}
+A12: {desc: A11 + 地平面运动模型, from: A11, set: {motion.space: ground}}
